@@ -45,7 +45,7 @@ const frameColors = [
 
 // estado da simulação
 let frameLivres = [];
-let frameLista = [];    // primeiro a entrar, ultimo a sair
+let frameLista = [];    // primeiro a entrar, primeiro a sair
 let tabelaPag = {};    // armazena as tabelas de páginas de cada processo
 
 let tabelaFrame = Array(FRAME_CONTADOR).fill(null); // mapeia frames físicos para páginas lógicas
