@@ -5,39 +5,40 @@ const memoryEl = document.getElementById("memoria");
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 
-
-// paleta de cores para as subrotinas
+//? Paleta de cores para as subrotinas
 const subColors = [
     "#8DF82B", "#2BF4F8", "#FFD700", "#FF6347", "#9370DB",
     "#FF4500", "#ADFF2F", "#DA70D6", "#40E0D0", "#FFDAB9",
     "#CD853F", "#6A5ACD", "#7FFFD4", "#F0E68C", "#8B0000"
 ];
 
-// estado das subrotinas
-let filaSubrotinas = []; // fila de espera
-let duracao = {}; // duração das rotinas
+//? Variáveis das subrotinas
+let filaSubrotinas = [];
+let duracao = {};
 let subrotinasAtiva = {};
 let subrotinasCompleta = [];
-let idIntervaloLista; // para atualização das listas
-let rodando = false; // controla se a simulação está rodando
-let totalSubrotinas = 0; // contador para o total de subrotinas geradas
-let contadorSubrotinasFim = 0; // contador para subrotinas concluídas
+let totalSubrotinas = 0;
+let rodando = false;
 
-// variaveis para o timer da rotina principal
-let idRotinaPrincipalTempo; // id do intervalo para o timer da rotina principal
+//? Variáveis para controle de estado anterior
+let estadoAnteriorFila = [];
+let estadoAnteriorAtivas = {};
+let estadoAnteriorCompletas = [];
 
-let rotinaPrincipalTempoSobra;
-const DURACAO_ROTINA_PRINCIPAL = 15; // em segundos
-const SUBROTINAS_MAX = 4; // numero maximo ativas simultaneamente
-
-// novo ID de intervalo para geração de subrotinas
+//? Variáveis para timers
+let idIntervaloLista;
+let idRotinaPrincipalTempo;
 let idGeracaoIntervaloSubrotina;
 
-// controla se o timer da rotina principal esta pausado
+//? Constantes
+let rotinaPrincipalTempoSobra;
+const DURACAO_ROTINA_PRINCIPAL = 30;
+const SUBROTINAS_MAX = 4;
+
+//? Controles
 let rotinaPrincipalPausada = false;
 
-// mostra algumas mensagens ao usuario ao topo da tela
-function mostrarMensagem(message, duration = 3000) {
+function mostrarMensagem(message, duration = 5000) {
     let messageBox = document.querySelector('.message-box');
     if (!messageBox) {
         messageBox = document.createElement('div');
@@ -46,92 +47,109 @@ function mostrarMensagem(message, duration = 3000) {
     }
     messageBox.textContent = message;
     messageBox.classList.add('show');
-    setTimeout(() => {
-        messageBox.classList.remove('show');
-    }, duration);
+    setTimeout(() => messageBox.classList.remove('show'), duration);
 }
 
-// reseta o estado das subrotinas e limpa a memória
 function resetEstado() {
     filaSubrotinas = [];
     duracao = {};
     subrotinasAtiva = {};
     subrotinasCompleta = [];
     totalSubrotinas = 0;
-    contadorSubrotinasFim = 0;
-    clearInterval(idIntervaloLista);
-    clearInterval(idRotinaPrincipalTempo); // limpa o timer da rotina principal
-    clearInterval(idGeracaoIntervaloSubrotina); // limpa o timer de geração de subrotinas
+    estadoAnteriorFila = [];
+    estadoAnteriorAtivas = {};
+    estadoAnteriorCompletas = [];
+
+    [idIntervaloLista, idRotinaPrincipalTempo, idGeracaoIntervaloSubrotina].forEach(clearInterval);
+
     rodando = false;
     idRotinaPrincipalTempo = null;
     rotinaPrincipalPausada = false;
-    memoryEl.innerHTML = ""; // limpa a memória visual
+    memoryEl.innerHTML = "";
     atualizarListas();
 }
 
-function configuraSubrotinas() {
-    duracao = {};
-    totalSubrotinas = 0;
-}
-
 function atualizarListas() {
-    // fila (max 10 itens visiveis)
-    queueListEl.innerHTML = "";
-    filaSubrotinas.slice(0, 10).forEach((name) => {
-        const li = document.createElement("li");
-        li.textContent = name;
-        queueListEl.appendChild(li);
-    });
+    //? Fila de espera
+    if (JSON.stringify(filaSubrotinas) !== JSON.stringify(estadoAnteriorFila)) {
+        queueListEl.innerHTML = "";
+        filaSubrotinas.forEach((subrotina, index) => {
+            const li = document.createElement("li");
+            li.className = "queue-item";
+            li.textContent = `${index + 1}. ${subrotina}`;
+            li.style.animationDelay = `${index * 0.1}s`;
+            li.addEventListener('animationend', () => li.classList.add('animation-complete'));
+            queueListEl.appendChild(li);
+        });
+        estadoAnteriorFila = [...filaSubrotinas];
+    }
 
-    // ativas
-    activeListEl.innerHTML = "";
-    Object.values(subrotinasAtiva).forEach((item) => {
-        const li = document.createElement("li");
-        li.textContent = `${item.name} (${item.timeRemaining.toFixed(1)}s)`; // tempo restante
-        li.style.color = "var(--text-main)";
-        activeListEl.appendChild(li);
-    });
+    //? Subrotinas ativas
+    const ativasKeys = Object.keys(subrotinasAtiva).sort();
+    const anteriorAtivasKeys = Object.keys(estadoAnteriorAtivas).sort();
+    const ativasNames = ativasKeys.map(key => subrotinasAtiva[key].name);
+    const anteriorAtivasNames = anteriorAtivasKeys.map(key => estadoAnteriorAtivas[key]?.name);
 
-    // concluidas
-    completedListEl.innerHTML = "";
-    subrotinasCompleta.forEach((name) => {
-        const li = document.createElement("li");
-        li.textContent = name;
-        li.style.color = "var(--sub-color-3)";
-        completedListEl.appendChild(li);
+    if (JSON.stringify(ativasNames) !== JSON.stringify(anteriorAtivasNames)) {
+        activeListEl.innerHTML = "";
+        Object.entries(subrotinasAtiva).forEach(([index, subrotina], listIndex) => {
+            const li = document.createElement("li");
+            li.className = "active-item";
+            li.id = `active-${index}`;
+            li.textContent = `Slot ${index}: ${subrotina.name} (${subrotina.timeRemaining?.toFixed(1) || 0}s)`;
+            li.style.animationDelay = `${listIndex * 0.1}s`;
+            li.addEventListener('animationend', () => li.classList.add('animation-complete'));
+            activeListEl.appendChild(li);
+        });
+
+        estadoAnteriorAtivas = Object.fromEntries(
+            Object.entries(subrotinasAtiva).map(([index, sub]) => [index, { name: sub.name }])
+        );
+    }
+
+    //? Subrotinas concluídas
+    if (JSON.stringify(subrotinasCompleta) !== JSON.stringify(estadoAnteriorCompletas)) {
+        completedListEl.innerHTML = "";
+        subrotinasCompleta.forEach((subrotina, index) => {
+            const li = document.createElement("li");
+            li.className = "completed-item";
+            li.textContent = `${index + 1}. ${subrotina}`;
+            li.style.animationDelay = `${index * 0.1}s`;
+            li.addEventListener('animationend', () => li.classList.add('animation-complete'));
+            completedListEl.appendChild(li);
+        });
+        estadoAnteriorCompletas = [...subrotinasCompleta];
+    }
+}
+
+function atualizarTemposAtivas() {
+    Object.entries(subrotinasAtiva).forEach(([index, subrotina]) => {
+        const li = document.getElementById(`active-${index}`);
+        if (li) {
+            li.textContent = `Slot ${index}: ${subrotina.name} (${subrotina.timeRemaining?.toFixed(1) || 0}s)`;
+        }
     });
 }
 
-// gera e adiciona uma nova subrotina na fila
 function gerarSubrotina() {
     if (rodando && rotinaPrincipalTempoSobra > 0 && filaSubrotinas.length < 10) {
-        let numero = 0;
         const rand = Math.random();
-
-        if (rand < 0.15) { // 15% de chance para 3 rotinas
-            numero = 3;
-        } else if (rand < 0.15 + 0.35) { // 35% de chance para 2 rotinas (total 50%)
-            numero = 2;
-        } else { // 50% de chance para 1 rotina
-            numero = 1;
-        }
+        const numero = rand < 0.15 ? 3 : rand < 0.5 ? 2 : 1;
 
         let generatedAny = false;
-        for (let i = 0; i < numero; i++) {
-            if (filaSubrotinas.length < 10) {
-                totalSubrotinas++;
-                const newSubroutineName = `Subrotina ${totalSubrotinas}`;
-                duracao[newSubroutineName] = parseFloat((Math.random() * 4 + 1).toFixed(1)); // tempo aleatório entre 1 e 5 segundos
-                filaSubrotinas.push(newSubroutineName);
-                mostrarMensagem(`Nova ${newSubroutineName} gerada e adicionada à fila.`);
-                generatedAny = true;
-            } else {
-                mostrarMensagem("Fila de subrotinas cheia, não foi possível gerar mais.");
-                break;
-            }
+        for (let i = 0; i < numero && filaSubrotinas.length < 10; i++) {
+            totalSubrotinas++;
+            const newSubroutineName = `Subrotina ${totalSubrotinas}`;
+            duracao[newSubroutineName] = parseFloat((Math.random() * 4 + 1).toFixed(1));
+            filaSubrotinas.push(newSubroutineName);
+            mostrarMensagem(`Nova ${newSubroutineName} gerada e adicionada à fila.`);
+            generatedAny = true;
         }
 
-        // pausa o timer da principal se novas subrotinas foram geradas
+        if (!generatedAny && filaSubrotinas.length >= 10) {
+            mostrarMensagem("Fila de subrotinas cheia, não foi possível gerar mais.");
+        }
+
         if (generatedAny && idRotinaPrincipalTempo && !rotinaPrincipalPausada) {
             clearInterval(idRotinaPrincipalTempo);
             idRotinaPrincipalTempo = null;
@@ -141,7 +159,6 @@ function gerarSubrotina() {
     }
 }
 
-// processar a fila de subrotinas e ativar as que puderem
 function processaFila() {
     for (let i = 0; i < SUBROTINAS_MAX; i++) {
         if (!subrotinasAtiva[i] && filaSubrotinas.length > 0) {
@@ -152,20 +169,17 @@ function processaFila() {
 }
 
 function timerRotinaPrincipal() {
-    if (idRotinaPrincipalTempo) { // limpa para evitar múltiplos timers
-        clearInterval(idRotinaPrincipalTempo);
-    }
+    if (idRotinaPrincipalTempo) clearInterval(idRotinaPrincipalTempo);
+
     idRotinaPrincipalTempo = setInterval(() => {
         rotinaPrincipalTempoSobra -= 0.1;
 
-        // atualiza o display do timer da rotina principal
         const mainTimerEl = memoryEl.querySelector('.main .timer');
         if (mainTimerEl) {
             const displayTime = Math.max(0, rotinaPrincipalTempoSobra);
             mainTimerEl.textContent = `${displayTime.toFixed(1)}s`;
         }
 
-        // atualiza a altura do preenchimento de progresso da rotina principal
         const mainProgressFillEl = memoryEl.querySelector('.main .progress-fill');
         if (mainProgressFillEl) {
             const progressPercentage = ((DURACAO_ROTINA_PRINCIPAL - rotinaPrincipalTempoSobra) / DURACAO_ROTINA_PRINCIPAL) * 100;
@@ -176,11 +190,8 @@ function timerRotinaPrincipal() {
         if (rotinaPrincipalTempoSobra <= 0) {
             clearInterval(idRotinaPrincipalTempo);
             idRotinaPrincipalTempo = null;
-
             const progressFill = memoryEl.querySelector('.main .progress-fill');
-            if (progressFill) {
-                progressFill.style.height = '100%';
-            }
+            if (progressFill) progressFill.style.height = '100%';
             mostrarMensagem("Tempo da Rotina Principal esgotado! Simulação parada.", 5000);
             parar();
         }
@@ -194,26 +205,22 @@ function iniciar() {
     }
 
     resetEstado();
-    configuraSubrotinas();
     criarRotinaPrincipal();
     timerRotinaPrincipal();
-
-    // Define rodando como true primeiro
     rodando = true;
 
-    // gerar entre 3 a 5 subrotinas iniciais na fila de espera
-    const numSubrotinasIniciais = Math.floor(Math.random() * 3) + 3; // 3, 4 ou 5
+    //? Gera subrotinas iniciais
+    const numSubrotinasIniciais = Math.floor(Math.random() * 3) + 3;
     for (let i = 0; i < numSubrotinasIniciais; i++) {
         gerarSubrotina();
     }
 
-    // gera uma nova rotina a cada 5 segundos
     idGeracaoIntervaloSubrotina = setInterval(gerarSubrotina, 5000);
-
     idIntervaloLista = setInterval(() => {
         atualizarListas();
+        atualizarTemposAtivas();
         processaFila();
-    }, 500); // atualiza as listas e processa a fila a cada 0.5 segundos
+    }, 500);
 
     mostrarMensagem(`Simulação iniciada! ${numSubrotinasIniciais} subrotinas adicionadas à fila de espera.`);
 }
@@ -224,21 +231,16 @@ function parar() {
         return;
     }
 
-    Object.values(subrotinasAtiva).forEach((item) =>
-        clearInterval(item.timerId)
-    );
-    clearInterval(idRotinaPrincipalTempo);
-    clearInterval(idGeracaoIntervaloSubrotina);
+    Object.values(subrotinasAtiva).forEach(item => clearInterval(item.timerId));
+    [idRotinaPrincipalTempo, idGeracaoIntervaloSubrotina, idIntervaloLista].forEach(clearInterval);
 
     rodando = false;
     mostrarMensagem("Simulação pausada. O estado atual foi mantido.");
     atualizarListas();
 }
 
-// cria e adiciona rotina principal
 function criarRotinaPrincipal() {
-    rotinaPrincipalTempoSobra = DURACAO_ROTINA_PRINCIPAL; // inicializa o tempo
-
+    rotinaPrincipalTempoSobra = DURACAO_ROTINA_PRINCIPAL;
     const rotinaPrincipal = document.createElement("div");
     rotinaPrincipal.className = "main fade-in";
     rotinaPrincipal.innerHTML = `
@@ -250,26 +252,21 @@ function criarRotinaPrincipal() {
 }
 
 function executarSubrotina(name, index) {
-    // cor aleatória para o preenchimento
     const color = subColors[Math.floor(Math.random() * subColors.length)];
-
     const subDiv = document.createElement("div");
     subDiv.className = "sub fade-in";
 
-    // preenchimento de progresso
     const progressFillEl = document.createElement("div");
     progressFillEl.className = "progress-fill";
     progressFillEl.style.backgroundColor = color;
     subDiv.appendChild(progressFillEl);
 
-    // titulo
     const title = document.createElement("div");
     title.textContent = name;
     title.style.position = 'relative';
     title.style.zIndex = '1';
     subDiv.appendChild(title);
 
-    // contador
     const timerEl = document.createElement("div");
     let timeRemaining = duracao[name];
     timerEl.textContent = `${timeRemaining.toFixed(1)}s`;
@@ -280,53 +277,49 @@ function executarSubrotina(name, index) {
     memoryEl.appendChild(subDiv);
 
     const timerId = setInterval(() => {
-        timeRemaining -= 0.1; // -0.1s
+        timeRemaining -= 0.1;
         if (timeRemaining > 0) {
-            timerEl.textContent = `${timeRemaining.toFixed(1)}s`; // atualiza o contador
-            // atualiza o tempo restante no objeto subrotinasAtiva
+            timerEl.textContent = `${timeRemaining.toFixed(1)}s`;
             if (subrotinasAtiva[index]) {
                 subrotinasAtiva[index].timeRemaining = timeRemaining;
             }
-            // atualiza a altura do preenchimento de progresso
             const progressPercentage = ((duracao[name] - timeRemaining) / duracao[name]) * 100;
             progressFillEl.style.height = `${progressPercentage}%`;
         } else {
-            // mostra 0.0s em vez de tempo negativo
             timerEl.textContent = `0.0s`;
             clearInterval(timerId);
             finalizarSubrotina(name, index, subDiv);
-            progressFillEl.style.height = '100%'; // garante que fique totalmente preenchido ao final
+            progressFillEl.style.height = '100%';
         }
-    }, 100); // 0.1s
+    }, 100);
 
-    // armazena a subrotina ativa, incluindo o tempo restante e o timerId
-    subrotinasAtiva[index] = { name, el: subDiv, timerId, timeRemaining: timeRemaining };
+    subrotinasAtiva[index] = { name, el: subDiv, timerId, timeRemaining };
 }
 
 function finalizarSubrotina(name, index, el) {
-    el.remove(); // remove o elemento visual da subrotina da memória
-    delete subrotinasAtiva[index]; // remove a subrotina da lista de ativas
-    subrotinasCompleta.push(name); // adiciona em concluidas
-    contadorSubrotinasFim++; // incrementa o contador de subrotinas concluidas
-    mostrarMensagem(`Subrotina "${name}" concluída.`);
+    el.classList.add('fade-out');
 
-    processaFila(); // preenche o slot que acabou de ser liberado
+    setTimeout(() => {
+        el.remove();
+        delete subrotinasAtiva[index];
+        subrotinasCompleta.push(name);
+        mostrarMensagem(`Subrotina "${name}" concluída.`);
+        processaFila();
 
-    // retoma o timer da principal se ele estava pausado e nao ha outra subrotinas ativas ou na fila
-    if (rotinaPrincipalPausada && Object.keys(subrotinasAtiva).length === 0 && filaSubrotinas.length === 0) {
-        rotinaPrincipalPausada = false;
-        timerRotinaPrincipal();
-        mostrarMensagem("Rotina Principal retomada.");
-    }
+        if (rotinaPrincipalPausada && Object.keys(subrotinasAtiva).length === 0 && filaSubrotinas.length === 0) {
+            rotinaPrincipalPausada = false;
+            timerRotinaPrincipal();
+            mostrarMensagem("Rotina Principal retomada.");
+        }
 
-    if (rotinaPrincipalTempoSobra <= 0) {
-        mostrarMensagem("Tempo da Rotina Principal esgotado! Simulação parada.", 5000);
-        parar();
-    }
+        if (rotinaPrincipalTempoSobra <= 0) {
+            mostrarMensagem("Tempo da Rotina Principal esgotado! Simulação parada.", 5000);
+            parar();
+        }
+    }, 600);
 }
 
+// Event listeners
 startBtn.addEventListener("click", iniciar);
 stopBtn.addEventListener("click", parar);
-document.getElementById("home").onclick = function () {
-    location.href = "../index.html";
-};
+document.getElementById("home").onclick = () => location.href = "../index.html";

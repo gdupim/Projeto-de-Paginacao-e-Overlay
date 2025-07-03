@@ -4,29 +4,29 @@ const eventLog = document.getElementById('eventLog');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 
-// configuração da paginação
+//? Configuração da paginação
 const FRAME_CONTADOR = 6;
 const PAGINA_TAMANHO = 1024;
-const ACESSO_MEMORIA = 32;
+const ACESSO_MEMORIA = 256;
 
 const processos = [
     {
         name: 'Processo 1',
         subroutines: [
-            { name: 'Sub A', size: 3500 }, // 3500 bytes = ~4 paginas
-            { name: 'Sub B', size: 1800 }  // 1800 bytes = 2 paginas
+            { name: 'Sub A', size: 3500 },
+            { name: 'Sub B', size: 1800 }
         ]
     },
     {
         name: 'Processo 2',
         subroutines: [
-            { name: 'Sub C', size: 5200 }, // 5200 bytes = ~6 paginas
-            { name: 'Sub D', size: 2400 }  // 2400 bytes = 3 paginas
+            { name: 'Sub C', size: 5200 },
+            { name: 'Sub D', size: 2400 }
         ]
     }
 ];
 
-// lista de todas as subrotinas para facilitar a seleção
+//? Lista de todas as subrotinas para facilitar a seleção
 const listaSubRotinas = processos.flatMap(proc =>
     proc.subroutines.map(sub => ({
         procName: proc.name,
@@ -35,60 +35,62 @@ const listaSubRotinas = processos.flatMap(proc =>
     }))
 );
 
-// paleta de cores
+//? Paleta de cores
 const frameColors = [
     "#8DF82B", "#2BF4F8", "#FFD700", "#FF6347", "#9370DB",
     "#FF8C00", "#00CED1", "#FF1493", "#7B68EE", "#32CD32",
     "#BA55D3", "#4682B4", "#D2B48C", "#F08080", "#20B2AA"
 ];
 
-
-// estado da simulação
+//? Variáveis da simulação
 let frameLivres = [];
-let frameLista = [];    // primeiro a entrar, primeiro a sair
-let tabelaPag = {};    // armazena as tabelas de páginas de cada processo
+let frameLista = [];
+let tabelaPag = {};
+let tabelaFrame = Array(FRAME_CONTADOR).fill(null);
+let idIntervaloSim = null;
 
-let tabelaFrame = Array(FRAME_CONTADOR).fill(null); // mapeia frames físicos para páginas lógicas
-let idIntervaloSim = null;  // id do intervalo da simulação para poder parar
-
-// inicializa a interface do usuário: cria os frames visuais e limpa as tabelas/log
 function initUI() {
-    // limpa e cria os elementos visuais dos frames físicos na memória
+    //? Limpa e cria os elementos visuais dos frames físicos na memória
     memoryContainer.innerHTML = '';
     for (let i = 0; i < FRAME_CONTADOR; i++) {
         const slot = document.createElement('div');
         slot.classList.add('frame-slot');
         slot.textContent = `Frame ${i}`;
-
-        slot.style.backgroundColor = '';
-        slot.style.color = '#475569';
-        slot.style.fontWeight = 'normal';
         memoryContainer.appendChild(slot);
     }
 
+    //? Cria o container para as tabelas lado a lado
     tabelaPagContainer.innerHTML = '';
-    eventLog.innerHTML = '';
+    const tablesContainer = document.createElement('div');
+    tablesContainer.className = 'page-tables-container';
 
-    // cria uma tabela de páginas para cada processo
+    //? Cria uma tabela de páginas para cada processo
     processos.forEach(proc => {
+        const tableWrapper = document.createElement('div');
+        tableWrapper.className = 'bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden';
+
         const tbl = document.createElement('table');
-        tbl.className = 'page-table';
-        // gera um id unico para a tabela, substituindo espaços por hifens
+        tbl.className = 'page-table w-full';
         tbl.id = `tbl-${proc.name.replace(/\s+/g, '-')}`;
         tbl.innerHTML = `
-      <caption>${proc.name}</caption>
-      <thead>
-        <tr>
-          <th>Subrotina</th>
-          <th>Página nº</th>
-          <th>Endereço virtual</th>
-          <th>Frame</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    `;
-        tabelaPagContainer.appendChild(tbl);
+            <caption>${proc.name}</caption>
+            <thead>
+                <tr>
+                    <th>Subrotina</th>
+                    <th>Página nº</th>
+                    <th>Endereço virtual</th>
+                    <th>Frame</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        `;
+
+        tableWrapper.appendChild(tbl);
+        tablesContainer.appendChild(tableWrapper);
     });
+
+    tabelaPagContainer.appendChild(tablesContainer);
+    eventLog.innerHTML = '';
 }
 
 function logEvent(text, colorClass = 'log-event-blue') {
@@ -96,42 +98,68 @@ function logEvent(text, colorClass = 'log-event-blue') {
     li.textContent = text;
     li.classList.add(colorClass);
     eventLog.appendChild(li);
-
     eventLog.scrollTop = eventLog.scrollHeight;
+}
+
+function highlightCell(cell) {
+    cell.classList.remove('cell-highlight');
+    cell.offsetHeight;
+    cell.classList.add('cell-highlight');
 }
 
 function updateTabelaPagUI() {
     processos.forEach(proc => {
         const tbl = document.getElementById(`tbl-${proc.name.replace(/\s+/g, '-')}`);
         const tb = tbl.querySelector('tbody');
+
+        // Armazena o estado anterior das células de frame
+        const previousFrameStates = {};
+        Array.from(tb.querySelectorAll('tr')).forEach((row, index) => {
+            const frameCell = row.cells[3];
+            if (frameCell) {
+                previousFrameStates[index] = frameCell.textContent;
+            }
+        });
+
         tb.innerHTML = '';
 
-        // itera pelas subrotinas do processo para preencher a tabela de páginas
+        let rowIndex = 0;
         proc.subroutines.forEach(sub => {
-            // obtem a tabela de páginas para a subrotina atual
             const pages = tabelaPag[proc.name][sub.name];
             pages.forEach((f, idx) => {
-                const start = idx * PAGINA_TAMANHO; // endereço virtual inicial
-                const end = (idx + 1) * PAGINA_TAMANHO - 1; // endereço virtual final
+                const start = idx * PAGINA_TAMANHO;
+                const end = (idx + 1) * PAGINA_TAMANHO - 1;
                 const tr = document.createElement('tr');
-                // variaveis>
+
+                const currentFrameValue = f === null ? '—' : 'F' + f;
+                const previousFrameValue = previousFrameStates[rowIndex];
+
                 tr.innerHTML = `
-          <td>${sub.name}</td>
-          <td>${idx}</td>
-          <td>${start}–${end}</td>
-          <td>${f === null ? '—' : 'F' + f}</td>
-        `;
+                    <td>${sub.name}</td>
+                    <td>${idx}</td>
+                    <td>${start}–${end}</td>
+                    <td class="frame-cell">${currentFrameValue}</td>
+                `;
+
                 tb.appendChild(tr);
+
+                //? Aplica o efeito de destaque se o valor do frame mudou
+                if (previousFrameValue && previousFrameValue !== currentFrameValue) {
+                    const frameCell = tr.cells[3];
+                    highlightCell(frameCell);
+                }
+
+                rowIndex++;
             });
         });
     });
 }
 
 function updateFrameUI(idx) {
-    const slot = memoryContainer.children[idx]; // obtem o elemento do frame
-    const entry = tabelaFrame[idx]; // obtem a entrada na tabela de frames
+    const slot = memoryContainer.children[idx];
+    const entry = tabelaFrame[idx];
 
-    // remove qualquer destaque anterior de todos os slots
+    //? Remove qualquer destaque anterior de todos os slots
     Array.from(memoryContainer.children).forEach(s => s.classList.remove('highlight'));
 
     if (entry) {
@@ -152,27 +180,27 @@ function updateFrameUI(idx) {
 function startSim() {
     if (idIntervaloSim !== null) return;
 
-    // reseta todas as variaveis
-    frameLivres = Array.from({ length: FRAME_CONTADOR }, (_, i) => i); // Todos os frames estão livres
+    //? Reseta todas as variáveis
+    frameLivres = Array.from({ length: FRAME_CONTADOR }, (_, i) => i);
     frameLista = [];
     tabelaPag = {};
-    // inicializa as tabelas de páginas para cada processo e subrotina
+
+    //? Inicializa as tabelas de páginas
     processos.forEach(proc => {
         tabelaPag[proc.name] = {};
         proc.subroutines.forEach(sub => {
-            // calcula o numero de paginas que a subrotina ocupa
             const count = Math.ceil(sub.size / PAGINA_TAMANHO);
-            // preenche a tabela de paginas da subrotina com 'null'
             tabelaPag[proc.name][sub.name] = Array(count).fill(null);
         });
     });
-    tabelaFrame = Array(FRAME_CONTADOR).fill(null);
 
+    tabelaFrame = Array(FRAME_CONTADOR).fill(null);
     initUI();
 
     logEvent('*** Iniciando simulação de paginação ***', 'log-event-blue');
     logEvent(`Total de frames: ${FRAME_CONTADOR}, Tamanho da página: ${PAGINA_TAMANHO} bytes`, 'log-event-blue');
 
+    //? Gera string de referência
     const referenceString = Array.from({ length: ACESSO_MEMORIA }, () => {
         const randomSub = listaSubRotinas[Math.floor(Math.random() * listaSubRotinas.length)];
         const pageCount = Math.ceil(randomSub.size / PAGINA_TAMANHO);
@@ -182,9 +210,8 @@ function startSim() {
 
     let refIndex = 0;
 
-    // inicia o intervalo principal da simulação
+    //? Inicia o intervalo principal da simulação
     idIntervaloSim = setInterval(() => {
-        // se o indice de referencia atingir o final da string, a simulação termina
         if (refIndex >= referenceString.length) {
             clearInterval(idIntervaloSim);
             idIntervaloSim = null;
@@ -199,29 +226,28 @@ function startSim() {
         const table = tabelaPag[procName][subName];
 
         if (table[pageNum] !== null) {
+            //? HIT
             logEvent(`HIT: ${procName}/${subName}[${pageNum}] já em frame ${table[pageNum]}`, 'log-event-green');
             updateFrameUI(table[pageNum]);
         } else {
-            // PAGE FAULT
+            //? PAGE FAULT
             let frameToUse;
 
-            // há frame livre?
             if (frameLivres.length > 0) {
                 frameToUse = frameLivres.shift();
                 logEvent(`PAGE FAULT: ${procName}/${subName}[${pageNum}] → alocado para frame ${frameToUse} (Frame Livre)`, 'log-event-purple');
             } else {
                 const victimFrame = frameLista.shift();
-                const [vProc, vSub, vPg, vColor] = tabelaFrame[victimFrame];
+                const [vProc, vSub, vPg] = tabelaFrame[victimFrame];
                 tabelaPag[vProc][vSub][vPg] = null;
                 logEvent(`SUBSTITUIÇÃO: ${vProc}/${vSub}[${vPg}] removido do frame ${victimFrame} para dar lugar a ${procName}/${subName}[${pageNum}]`, 'log-event-orange');
                 frameToUse = victimFrame;
             }
 
             const randomColor = frameColors[Math.floor(Math.random() * frameColors.length)];
-
             table[pageNum] = frameToUse;
             tabelaFrame[frameToUse] = [procName, subName, pageNum, randomColor];
-            frameLista.push(frameToUse); // adiciona ao final
+            frameLista.push(frameToUse);
 
             updateFrameUI(frameToUse);
             updateTabelaPagUI();
@@ -241,16 +267,14 @@ function stopSim() {
         logEvent('Simulação parada pelo usuário.', 'log-event-red');
         startBtn.disabled = false;
         stopBtn.disabled = true;
-
         Array.from(memoryContainer.children).forEach(s => s.classList.remove('highlight'));
     }
 }
 
+//? Event listeners
 startBtn.addEventListener('click', startSim);
 stopBtn.addEventListener('click', stopSim);
-document.getElementById("home").onclick = function () {
-    location.href = "../index.html";
-};
+document.getElementById("home").onclick = () => location.href = "../index.html";
 
 stopBtn.disabled = true;
 initUI();

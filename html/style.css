@@ -12,8 +12,7 @@ body {
     align-items: flex-start;
 }
 
-/* Overlay: */
-
+/*? Overlay */
 .main {
     background-color: #e2e8f0;
     color: #2c3e50;
@@ -84,21 +83,6 @@ body {
     opacity: 0.9;
 }
 
-.frame ul {
-    min-height: 100px;
-    list-style: none;
-    padding: 0;
-}
-
-.frame li {
-    padding: 6px 0;
-    border-bottom: 1px dashed #e2e8f0;
-}
-
-.frame li:last-child {
-    border-bottom: none;
-}
-
 .message-box {
     position: fixed;
     top: 20px;
@@ -117,8 +101,84 @@ body {
     opacity: 1;
 }
 
-/* Paginação */
+/* Colunas scrolláveis para as listas */
+.scrollable-list {
+    height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    background-color: #f9fafb;
+}
 
+.scrollable-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.scrollable-list li {
+    padding: 0.5rem;
+    margin-bottom: 0.25rem;
+    border-radius: 0.25rem;
+    border: 1px solid #e5e7eb;
+    font-size: 0.875rem;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: listItemFadeIn 0.5s ease-out forwards;
+}
+
+.scrollable-list li:last-child {
+    margin-bottom: 0;
+}
+
+/* Cores específicas para cada tipo de lista */
+.scrollable-list li.queue-item {
+    background-color: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+}
+
+.scrollable-list li.active-item {
+    background-color: #dcfce7;
+    border-color: #10b981;
+    color: #065f46;
+}
+
+.scrollable-list li.completed-item {
+    background-color: #dbeafe;
+    border-color: #3b82f6;
+    color: #1e40af;
+}
+
+/* Remove a animação após ela ter rodado uma vez */
+.scrollable-list li.animation-complete {
+    opacity: 1;
+    transform: translateY(0);
+    animation: none;
+}
+
+/* Scrollbar personalizada */
+.scrollable-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollable-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.scrollable-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.scrollable-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/*? Paginação */
 .frame-slot {
     background-color: #cbd5e1;
     color: #475569;
@@ -144,9 +204,11 @@ body {
 }
 
 .page-table {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 1rem;
     background-color: #ffffff;
     border-radius: 0.5rem;
     overflow: hidden;
@@ -154,27 +216,37 @@ body {
 }
 
 .page-table caption {
-    font-size: 1.25rem;
-    font-weight: bold;
-    margin-bottom: 0.75rem;
-    color: #1e3a8a;
-    text-align: center;
-    padding: 0.5rem;
-    background-color: #eff6ff;
+    background-color: #dbeafe;
+    padding: 0.75rem;
+    font-weight: 600;
+    color: #1e40af;
     border-radius: 0.5rem 0.5rem 0 0;
+    margin-bottom: 0;
+    width: 100%;
+    font-size: 1.25rem;
 }
 
 .page-table th,
 .page-table td {
-    border: 1px solid #e2e8f0;
-    padding: 0.75rem;
+    padding: 0.5rem 0.75rem;
     text-align: left;
+    border: 1px solid #e2e8f0;
 }
 
 .page-table th {
     background-color: #bfdbfe;
+    font-weight: 600;
     color: #1e3a8a;
-    font-weight: bold;
+    font-size: 0.875rem;
+}
+
+.page-table td {
+    font-size: 0.875rem;
+}
+
+.page-table .frame-cell {
+    font-weight: 600;
+    color: #059669;
 }
 
 .page-table tbody tr:nth-child(even) {
@@ -183,6 +255,19 @@ body {
 
 .page-table tbody tr:hover {
     background-color: #e0f2fe;
+}
+
+/*? layout para tabelas de páginas lado a lado */
+.page-tables-container {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.page-tables-container>div {
+    flex: 1;
+    max-width: calc(50% - 0.75rem);
 }
 
 #eventLog {
@@ -223,13 +308,97 @@ body {
     color: #dc2626;
 }
 
-@media (max-width: 768px) {
-    .buttons {
-        flex-direction: column;
+/*? animações */
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
     }
 
-    .logs {
-        grid-template-columns: 1fr;
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+
+@keyframes listItemFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes listItemFadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes cellHighlight {
+    0% {
+        background-color: #d2fec7;
+        transform: scale(1);
+    }
+
+    50% {
+        background-color: #24fb5a;
+        transform: scale(1.02);
+    }
+
+    100% {
+        background-color: transparent;
+        transform: scale(1);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.8s ease-out;
+}
+
+.fade-out {
+    animation: fadeOut 0.6s ease-in forwards;
+}
+
+.fade-out-item {
+    animation: listItemFadeOut 0.3s ease-in forwards;
+}
+
+.cell-highlight {
+    animation: cellHighlight 1.2s ease-in-out;
+}
+
+/*? Responsividade */
+@media (max-width: 768px) {
+    .page-tables-container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .page-tables-container>div {
+        max-width: 100%;
     }
 
     .frame-slot {
@@ -246,21 +415,4 @@ body {
     .page-table td {
         padding: 0.5rem;
     }
-}
-
-/* Animação de fade-in para rotinas */
-@keyframes fadeIn {
-    0% {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    100% {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.fade-in {
-    animation: fadeIn 0.8s ease-out;
 }
