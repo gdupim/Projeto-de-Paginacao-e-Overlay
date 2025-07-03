@@ -323,5 +323,5 @@ function finalizarSubrotina(name, index, el) {
 startBtn.addEventListener("click", iniciar);
 stopBtn.addEventListener("click", parar);
 document.getElementById("home").onclick = function () {
-    location.href = "/html/index.html";
+    location.href = "/index.html";
 };
