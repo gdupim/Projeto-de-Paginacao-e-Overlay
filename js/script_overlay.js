@@ -186,7 +186,6 @@ function timerRotinaPrincipal() {
     }, 100);
 }
 
-
 function iniciar() {
     if (rodando) {
         mostrarMensagem("A simulação já está em andamento.");
@@ -198,8 +197,12 @@ function iniciar() {
     criarRotinaPrincipal();
     timerRotinaPrincipal();
 
-    // gerar 5 subrotinas iniciais
-    for (let i = 0; i < 5; i++) {
+    // Define rodando como true primeiro
+    rodando = true;
+
+    // gerar entre 3 a 5 subrotinas iniciais na fila de espera
+    const numSubrotinasIniciais = Math.floor(Math.random() * 3) + 3; // 3, 4 ou 5
+    for (let i = 0; i < numSubrotinasIniciais; i++) {
         gerarSubrotina();
     }
 
@@ -211,8 +214,7 @@ function iniciar() {
         processaFila();
     }, 500); // atualiza as listas e processa a fila a cada 0.5 segundos
 
-    rodando = true;
-    mostrarMensagem("Simulação iniciada!");
+    mostrarMensagem(`Simulação iniciada! ${numSubrotinasIniciais} subrotinas adicionadas à fila de espera.`);
 }
 
 function parar() {
