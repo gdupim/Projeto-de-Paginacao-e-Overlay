@@ -161,7 +161,8 @@ function timerRotinaPrincipal() {
         // atualiza o display do timer da rotina principal
         const mainTimerEl = memoryEl.querySelector('.main .timer');
         if (mainTimerEl) {
-            mainTimerEl.textContent = `${rotinaPrincipalTempoSobra.toFixed(1)}s`;
+            const displayTime = Math.max(0, rotinaPrincipalTempoSobra);
+            mainTimerEl.textContent = `${displayTime.toFixed(1)}s`;
         }
 
         // atualiza a altura do preenchimento de progresso da rotina principal
@@ -253,7 +254,7 @@ function executarSubrotina(name, index) {
     const color = subColors[Math.floor(Math.random() * subColors.length)];
 
     const subDiv = document.createElement("div");
-    subDiv.className = "sub fade-in"; // Mudança aqui
+    subDiv.className = "sub fade-in";
 
     // preenchimento de progresso
     const progressFillEl = document.createElement("div");
@@ -290,6 +291,8 @@ function executarSubrotina(name, index) {
             const progressPercentage = ((duracao[name] - timeRemaining) / duracao[name]) * 100;
             progressFillEl.style.height = `${progressPercentage}%`;
         } else {
+            // mostra 0.0s em vez de tempo negativo
+            timerEl.textContent = `0.0s`;
             clearInterval(timerId);
             finalizarSubrotina(name, index, subDiv);
             progressFillEl.style.height = '100%'; // garante que fique totalmente preenchido ao final
