@@ -323,5 +323,5 @@ function finalizarSubrotina(name, index, el) {
 startBtn.addEventListener("click", iniciar);
 stopBtn.addEventListener("click", parar);
 document.getElementById("home").onclick = function () {
-    location.href = "gdupim.github.io/index.html";
+    location.href = "index.html";
 };
