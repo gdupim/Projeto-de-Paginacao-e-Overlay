@@ -248,7 +248,7 @@ function stopSim() {
 
 startBtn.addEventListener('click', startSim);
 stopBtn.addEventListener('click', stopSim);
-document.getElementById('home').addEventListener('click', () => location.href = 'index.html');
+document.getElementById('home').addEventListener('click', () => location.href = 'gdupim.github.io/index.html');
 
 stopBtn.disabled = true;
 initUI();
