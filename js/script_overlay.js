@@ -65,7 +65,10 @@ function resetEstado() {
     rodando = false;
     idRotinaPrincipalTempo = null;
     rotinaPrincipalPausada = false;
+
+    // Limpar completamente o overlay de memória
     memoryEl.innerHTML = "";
+
     atualizarListas();
 }
 
@@ -253,8 +256,23 @@ function criarRotinaPrincipal() {
 
 function executarSubrotina(name, index) {
     const color = subColors[Math.floor(Math.random() * subColors.length)];
-    const subDiv = document.createElement("div");
-    subDiv.className = "sub fade-in";
+
+    // Verificar se existe uma subrotina anterior no mesmo slot para substituir
+    let subDiv;
+    const existingSubDiv = memoryEl.querySelector(`[data-slot="${index}"]`);
+
+    if (existingSubDiv) {
+        // Reutilizar o elemento existente
+        subDiv = existingSubDiv;
+        subDiv.innerHTML = ''; // Limpar conteúdo anterior
+        subDiv.className = "sub fade-in";
+    } else {
+        // Criar novo elemento
+        subDiv = document.createElement("div");
+        subDiv.className = "sub fade-in";
+        subDiv.setAttribute('data-slot', index);
+        memoryEl.appendChild(subDiv);
+    }
 
     const progressFillEl = document.createElement("div");
     progressFillEl.className = "progress-fill";
@@ -273,8 +291,6 @@ function executarSubrotina(name, index) {
     timerEl.style.position = 'relative';
     timerEl.style.zIndex = '1';
     subDiv.appendChild(timerEl);
-
-    memoryEl.appendChild(subDiv);
 
     const timerId = setInterval(() => {
         timeRemaining -= 0.1;
@@ -300,7 +316,11 @@ function finalizarSubrotina(name, index, el) {
     el.classList.add('fade-out');
 
     setTimeout(() => {
-        el.remove();
+        // Não remover o elemento, apenas limpar o conteúdo
+        el.classList.remove('fade-out');
+        el.innerHTML = '';
+        el.className = "sub"; // Reset para classe base
+
         delete subrotinasAtiva[index];
         subrotinasCompleta.push(name);
         mostrarMensagem(`Subrotina "${name}" concluída.`);
