@@ -6,6 +6,8 @@ Um simulador educacional que demonstra dois conceitos fundamentais de gerenciame
 
 Este projeto implementa simulações visuais e interativas para ajudar no entendimento de como funcionam as técnicas de gerenciamento de memória virtual em sistemas operacionais.
 
+Link para teste: gdupim.github.io/Projeto-de-Paginacao-e-Overlay
+
 ## Funcionalidades
 
 ### Simulador de Overlay
